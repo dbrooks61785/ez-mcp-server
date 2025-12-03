@@ -52,4 +52,45 @@ async def mcp_info(authorization: str | None = Header(default=None)):
 
 
 @app.get("/mcp/tools")
-async def m
+async def mcp_tools(authorization: str | None = Header(default=None)):
+    verify_token(authorization)
+    return {
+        "tools": {
+            "ping": {
+                "name": "ping",
+                "description": "Responds with pong",
+                "schema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            }
+        }
+    }
+
+
+@app.post("/mcp/execute")
+async def mcp_execute(request: Request, authorization: str | None = Header(default=None)):
+    verify_token(authorization)
+    body = await request.json()
+    tool = body.get("tool")
+
+    if tool == "ping":
+        return {"response": {"message": "pong"}}
+
+    return {"error": "Unknown tool"}
+
+
+# ============================
+# SSE STREAM (MCP CONNECTION)
+# ============================
+@app.get("/sse")
+async def sse(authorization: str | None = Header(default=None)):
+    verify_token(authorization)
+
+    async def event_stream():
+        yield "event: ready\ndata: {}\n\n"
+        while True:
+            yield "event: keepalive\ndata: {}\n\n"
+            await asyncio.sleep(1)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
