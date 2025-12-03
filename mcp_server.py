@@ -1,10 +1,20 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import asyncio
 import json
 
 app = FastAPI()
+
+# ---- REQUIRED FOR CHATGPT MCP ----
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class PingResponse(BaseModel):
     message: str
@@ -16,12 +26,22 @@ def ping():
 @app.get("/sse")
 async def sse(request: Request):
     async def event_stream():
-        # SEND FIRST EVENT IMMEDIATELY (required by ChatGPT)
-        yield f"data: {json.dumps({'status': 'ready'})}\n\n"
+        # Required: send first SSE event immediately
+        yield "event: message\ndata: {\"status\":\"ready\"}\n\n"
 
-        # KEEP ALIVE EVENTS
+        # Keep connection alive
         while True:
-            yield f"data: {json.dumps({'status': 'alive'})}\n\n"
+            yield "event: message\ndata: {\"status\":\"alive\"}\n\n"
             await asyncio.sleep(1)
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    # Required headers for SSE & MCP
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
