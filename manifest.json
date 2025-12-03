@@ -1,0 +1,15 @@
+{
+  "name": "EZ Automation MCP",
+  "version": "1.0.0",
+  "tools": {
+    "ping": {
+      "description": "Ping the MCP server",
+      "endpoint": "http://localhost:3030/ping",
+      "method": "POST",
+      "schema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  }
+}
