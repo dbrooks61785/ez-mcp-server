@@ -1,12 +1,32 @@
 import asyncio
 import json
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Header, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+# ============================
+# CONFIG
+# ============================
+BEARER_TOKEN = "EZ_AUTOMATION_MCP_SERVER_DONT_STEAL_MY_SHIT_2025"
+
+def verify_token(auth_header: str | None):
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid Authorization header")
+
+    token = auth_header.replace("Bearer ", "").strip()
+
+    if token != BEARER_TOKEN:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+# ============================
+# APP INIT
+# ============================
 app = FastAPI()
 
-# ---- MCP REQUIRED ----
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,8 +35,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ============================
+# MCP ENDPOINTS
+# ============================
+
 @app.get("/mcp/info")
-async def mcp_info():
+async def mcp_info(authorization: str | None = Header(default=None)):
+    verify_token(authorization)
     return {
         "protocol": "2024-02-01",
         "name": "EZ Automation MCP",
@@ -24,34 +50,6 @@ async def mcp_info():
         "tools": ["ping"]
     }
 
+
 @app.get("/mcp/tools")
-async def mcp_tools():
-    return {
-        "tools": {
-            "ping": {
-                "name": "ping",
-                "description": "Responds with pong",
-                "schema": {
-                    "type": "object",
-                    "properties": {}
-                }
-            }
-        }
-    }
-
-@app.post("/mcp/execute")
-async def mcp_execute(request: Request):
-    body = await request.json()
-    tool = body.get("tool")
-    if tool == "ping":
-        return JSONResponse({"response": {"message": "pong"}})
-    return JSONResponse({"error": "Unknown tool"}, status_code=400)
-
-@app.get("/sse")
-async def sse():
-    async def stream():
-        yield "event: ready\ndata: {}\n\n"
-        while True:
-            yield "event: keepalive\ndata: {}\n\n"
-            await asyncio.sleep(1)
-    return StreamingResponse(stream(), media_type="text/event-stream")
+async def m
